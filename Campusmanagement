@@ -1,0 +1,355 @@
+
+
+package abc;
+import java.util.*;
+
+public class CampusManagementSystem {
+
+    Scanner sc = new Scanner(System.in);
+
+    class Person {
+        String name, id, role, department;
+
+        Person(String name, String id, String role, String department) {
+            this.name = name;
+            this.id = id;
+            this.role = role;
+            this.department = department;
+        }
+
+        boolean validateName() {
+            if (name == null || name.trim().isEmpty()) return false;
+            for (char c : name.toCharArray()) if (Character.isDigit(c)) return false;
+            return true;
+        }
+
+        boolean validateID() {
+            if (id == null || id.length() < 4) return false;
+
+            if (role.equalsIgnoreCase("Student"))
+                return id.startsWith("ST") && id.length() == 8 && digitsOK(id.substring(2));
+
+            if (role.equalsIgnoreCase("Staff"))
+                return id.startsWith("SF") && id.length() == 7 && digitsOK(id.substring(2));
+
+            return false;
+        }
+
+        boolean digitsOK(String s) {
+            boolean allSame = true;
+            for (int i = 0; i < s.length(); i++) {
+                if (!Character.isDigit(s.charAt(i))) return false;
+                if (s.charAt(i) != s.charAt(0)) allSame = false;
+            }
+            return !allSame;
+        }
+    }
+
+    class CampusEntrant extends Person {
+        String entryTime, status = "Valid";
+
+        CampusEntrant(String name, String id, String role, String dept, String time) {
+            super(name, id, role, dept);
+            this.entryTime = time;
+        }
+
+        void validateEntry() {
+            if (entryTime == null || entryTime.length() != 5 || entryTime.charAt(2) != ':') {
+                status = "Invalid Time Format";
+                return;
+            }
+
+            try {
+                String[] p = entryTime.split(":");
+                int min = Integer.parseInt(p[0]) * 60 + Integer.parseInt(p[1]);
+
+                if (role.equalsIgnoreCase("Student") && min > 570) status = "Late Student";
+                else if (role.equalsIgnoreCase("Staff") && min > 525) status = "Late Staff";
+                else if (role.equalsIgnoreCase("Visitor") && min < 600) status = "Access Denied: Visitor Early";
+
+            } catch (Exception e) {
+                status = "Invalid Time Format";
+            }
+        }
+
+        void show() {
+            System.out.println("\n--- " + role.toUpperCase() + " ENTRY ---");
+            System.out.println("Name: " + name + " | ID: " + id);
+            System.out.println("Dept: " + department);
+            System.out.println("Time: " + entryTime + " | Status: " + status);
+        }
+    }
+
+    class Student extends Person {
+        int age, semester, lateCounter = 0;
+        double[] marks;
+        double cgpa;
+
+        Student(String name, String id, int age, String dept, int sem, double[] marks) {
+            super(name, id, "Student", dept);
+            this.age = age;
+            this.semester = sem;
+            this.marks = marks;
+            this.cgpa = calcCGPA();
+        }
+
+        double calcCGPA() {
+            double sum = 0;
+            for (double m : marks) sum += m;
+            return (sum / marks.length) / 25.0;
+        }
+
+        String grade() {
+            double avg = cgpa * 25;
+            if (avg >= 90) return "A+";
+            if (avg >= 80) return "A";
+            if (avg >= 70) return "B";
+            if (avg >= 60) return "C";
+            return "F";
+        }
+
+        void show() {
+            System.out.println("\n--- STUDENT RECORD ---");
+            System.out.println("Name: " + name + " | ID: " + id);
+            System.out.println("Dept: " + department + " | Semester: " + semester);
+            System.out.printf("CGPA: %.2f | Grade: %s\n", cgpa, grade());
+            System.out.println("Late Count: " + lateCounter);
+            System.out.println("Marks: " + Arrays.toString(marks));
+        }
+    }
+
+    Student[] students = new Student[200];
+    int stuCount = 0;
+
+    CampusEntrant[] log = new CampusEntrant[300];
+    int logCount = 0;
+
+    int invalidAttempts = 0;
+    boolean locked = false;
+
+    void enterCampus() {
+        if (locked) {
+            System.out.println("⛔ System Locked! Try later.");
+            return;
+        }
+
+        System.out.print("ID: "); String id = sc.nextLine();
+        System.out.print("Name: "); String name = sc.nextLine();
+        System.out.print("Role (Student/Staff/Visitor): "); String role = sc.nextLine();
+        System.out.print("Department: "); String dept = sc.nextLine();
+        System.out.print("Time (HH:MM): "); String time = sc.nextLine();
+
+        CampusEntrant c = new CampusEntrant(name, id, role, dept, time);
+
+        if (!c.validateName()) {
+            System.out.println("❌ Invalid Name");
+            fail(); return;
+        }
+
+        if (!role.equalsIgnoreCase("Visitor") && !c.validateID()) {
+            System.out.println("❌ Invalid ID");
+            fail(); return;
+        }
+
+        c.validateEntry();
+
+        if (c.status.startsWith("Access Denied")) {
+            System.out.println("❌ " + c.status);
+            fail(); return;
+        }
+
+        System.out.println("✅ Access Granted : " + c.status);
+        log[logCount++] = c;
+
+        if (role.equalsIgnoreCase("Student") && c.status.contains("Late")) {
+            Student s = findStudent(id);
+            if (s != null) s.lateCounter++;
+        }
+
+        reset();
+    }
+
+    void fail() {
+        invalidAttempts++;
+        if (invalidAttempts >= 3) {
+            locked = true;
+            System.out.println("⛔ SYSTEM LOCKED!");
+        }
+    }
+
+    void reset() {
+        invalidAttempts = 0;
+        locked = false;
+    }
+
+    void addStudent() {
+        try {
+            System.out.print("ID (STxxxxxx): "); String id = sc.nextLine();
+            System.out.print("Name: "); String name = sc.nextLine();
+            System.out.print("Age: "); int age = Integer.parseInt(sc.nextLine());
+            System.out.print("Dept: "); String dept = sc.nextLine();
+            System.out.print("Semester: "); int sem = Integer.parseInt(sc.nextLine());
+            System.out.print("Subjects (3-5): "); int n = Integer.parseInt(sc.nextLine());
+
+            if (n < 3 || n > 5) { System.out.println("❌ Subjects must be 3-5."); return; }
+
+            double[] marks = new double[n];
+            for (int i = 0; i < n; i++) {
+                System.out.print("Mark " + (i + 1) + ": ");
+                marks[i] = Double.parseDouble(sc.nextLine());
+            }
+
+            Student temp = new Student(name, id, age, dept, sem, marks);
+
+            if (!temp.validateName() || !temp.validateID()) {
+                System.out.println("❌ Invalid Name/ID");
+                return;
+            }
+
+            students[stuCount++] = temp;
+            System.out.println("✅ Student Added!");
+        } catch (Exception e) {
+            System.out.println("❌ Invalid input. Try again.");
+        }
+    }
+
+    Student findStudent(String id) {
+        for (int i = 0; i < stuCount; i++)
+            if (students[i].id.equals(id)) return students[i];
+        return null;
+    }
+
+    void searchStudent() {
+        System.out.print("ID: ");
+        Student s = findStudent(sc.nextLine());
+        if (s == null) System.out.println("❌ Not Found");
+        else s.show();
+    }
+
+    void viewStudents() {
+        if (stuCount == 0) System.out.println("No Records.");
+        for (int i = 0; i < stuCount; i++)
+            students[i].show();
+    }
+
+    void viewLate() {
+        boolean found = false;
+        for (int i = 0; i < logCount; i++) {
+            if (log[i].status.contains("Late")) {
+                log[i].show();
+                found = true;
+            }
+        }
+        if (!found) System.out.println("No late entries.");
+    }
+
+    void deptSummary() {
+        String[] dept = new String[100];
+        int[] count = new int[100];
+        int dc = 0;
+
+        for (int i = 0; i < stuCount; i++) {
+            String d = students[i].department;
+            boolean found = false;
+
+            for (int j = 0; j < dc; j++) {
+                if (dept[j].equalsIgnoreCase(d)) {
+                    count[j]++; found = true; break;
+                }
+            }
+
+            if (!found) {
+                dept[dc] = d;
+                count[dc] = 1;
+                dc++;
+            }
+        }
+
+        System.out.println("\n--- DEPARTMENT SUMMARY ---");
+        for (int i = 0; i < dc; i++)
+            System.out.println(dept[i] + " : " + count[i] + " Students");
+    }
+
+    void top3() {
+        System.out.println("\n--- TOP 3 STUDENTS BY DEPARTMENT ---");
+
+        String[] depts = new String[stuCount];
+        int dCount = 0;
+
+        for (int i = 0; i < stuCount; i++) {
+            String d = students[i].department;
+            boolean found = false;
+            for (int j = 0; j < dCount; j++)
+                if (depts[j].equalsIgnoreCase(d)) found = true;
+            if (!found) depts[dCount++] = d;
+        }
+
+        for (int i = 0; i < dCount; i++) {
+            String d = depts[i];
+
+            Student[] arr = new Student[stuCount];
+            int c = 0;
+
+            for (int j = 0; j < stuCount; j++)
+                if (students[j].department.equalsIgnoreCase(d))
+                    arr[c++] = students[j];
+
+            for (int m = 0; m < c - 1; m++)
+                for (int n = 0; n < c - m - 1; n++)
+                    if (arr[n].cgpa < arr[n + 1].cgpa) {
+                        Student t = arr[n];
+                        arr[n] = arr[n + 1];
+                        arr[n + 1] = t;
+                    }
+
+            System.out.println("\nDepartment: " + d);
+            for (int t = 0; t < Math.min(3, c); t++)
+                System.out.printf("%d) %s (%s) - CGPA: %.2f\n",
+                        t + 1, arr[t].name, arr[t].id, arr[t].cgpa);
+        }
+    }
+
+    void viewLog() {
+        if (logCount == 0) System.out.println("No entries.");
+        for (int i = 0; i < logCount; i++)
+            log[i].show();
+    }
+
+    void menu() {
+        int ch;
+        do {
+            System.out.println("\n--- CAMPUS SYSTEM MENU ---");
+            System.out.println("1. Enter Campus");
+            System.out.println("2. Add Student Record");
+            System.out.println("3. View All Students");
+            System.out.println("4. View Campus Log");
+            System.out.println("5. View Late Entries");
+            System.out.println("6. Department Summary");
+            System.out.println("7. Search Student");
+            System.out.println("8. Top 3 Students");
+            System.out.println("9. Exit");
+            System.out.print("Choice: ");
+            try {
+                ch = Integer.parseInt(sc.nextLine());
+            } catch (Exception e) { ch = 0; }
+
+            switch (ch) {
+                case 1: enterCampus(); break;
+                case 2: addStudent(); break;
+                case 3: viewStudents(); break;
+                case 4: viewLog(); break;
+                case 5: viewLate(); break;
+                case 6: deptSummary(); break;
+                case 7: searchStudent(); break;
+                case 8: top3(); break;
+                case 9: System.out.println("Goodbye!"); break;
+                default: System.out.println("Invalid Choice!");
+            }
+
+        } while (ch != 9);
+    }
+
+    public static void main(String[] args) {
+        new CampusManagementSystem().menu();
+    }
+}
