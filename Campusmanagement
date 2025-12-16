@@ -27,10 +27,10 @@ public class CampusManagementSystem {
             if (id == null || id.length() < 4) return false;
 
             if (role.equalsIgnoreCase("Student"))
-                return id.startsWith("ST") && id.length() == 8 && digitsOK(id.substring(2));
+                return id.startsWith("ST") && id.length() == 5 && digitsOK(id.substring(2));
 
             if (role.equalsIgnoreCase("Staff"))
-                return id.startsWith("SF") && id.length() == 7 && digitsOK(id.substring(2));
+                return id.startsWith("SF") && id.length() == 5 && digitsOK(id.substring(2));
 
             return false;
         }
